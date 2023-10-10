@@ -38,10 +38,11 @@ class MainMenuCaller:
     def get_company_vacancies(self):
         if self.debug:
             company_name = next(self.debug_companies)
+            print('Введите название компании для поиска:\n-->')
+            print(f'-->{company_name}')
         else:
-            company_name = input('Введите название компании для поиска')
+            company_name = input('Введите название компании для поиска:\n-->')
 
-        print(company_name)
         # HeadHunter
         company = hh_api.get_company(company_name)
         company_vacancies = hh_api.get_company_vacancies(company)
@@ -49,10 +50,10 @@ class MainMenuCaller:
 
         # PostgeSQL
         with PostgresAPI() as sql:
-            sql.insert_company(company)
-            sql.insert_list_of_vacancies()
-            print(
-                f'Добавлены {len(company_vacancies)} вакансий компании {company["name"]}')
+            if sql.insert_company(company):
+                sql.insert_list_of_vacancies()
+                print(
+                    f'Добавлены {len(company_vacancies)} вакансий компании {company["name"]}')
 
     def get_companies_and_vacancies_count(self):
         with PostgresAPI() as sql:
@@ -94,4 +95,4 @@ class MainMenuCaller:
 
 
 if __name__ == '__main__':
-    MainMenuCaller(debug=True).start_programm()
+    MainMenuCaller(debug=False).start_programm()

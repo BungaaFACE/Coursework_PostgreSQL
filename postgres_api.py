@@ -50,9 +50,14 @@ class PostgresAPI:
         company_url = company['url']
 
         cursor = self.conn.cursor()
-        cursor.execute(
-            f"INSERT INTO companies(company_id, company_name, company_url) VALUES ({company_id}, '{company_name}', '{company_url}')")
+        try:
+            cursor.execute(
+                f"INSERT INTO companies(company_id, company_name, company_url) VALUES ({company_id}, '{company_name}', '{company_url}')")
+        except psycopg2.errors.UniqueViolation:
+            print('Компания и ее вакансии уже сохранены. Если вы хотите обновить список вакансий, то прежде выберите пункт меню 7 (удаление записей).')
+            return False
         cursor.close()
+        return True
 
     def insert_list_of_vacancies(self):
         """

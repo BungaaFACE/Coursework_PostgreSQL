@@ -79,10 +79,15 @@ class HeadHunterAPI:
 
             if vacancy.get('salary'):
                 if vacancy['salary'].get('currency') == 'RUR':
-                    salary_from = vacancy.get(
-                        'salary', {}).get('from', 0)
-                    salary_to = vacancy.get(
-                        'salary', {}).get('to', 0)
+                    # Если в данных стоит None, то автоматическая замена dict.get не сработает
+                    salary_from = 0
+                    salary_to = 0
+                    if vacancy['salary'].get('from'):
+                        salary_from = vacancy.get(
+                            'salary', {}).get('from')
+                    if vacancy['salary'].get('to'):
+                        salary_to = vacancy.get(
+                            'salary', {}).get('to')
                 else:
                     salary_from, salary_to = self.currency_to_rub(
                         vacancy['salary'])
@@ -114,10 +119,13 @@ class HeadHunterAPI:
             resp = requests.get('https://api.hh.ru/dictionaries').json()
             for cur in resp['currency']:
                 self.currency_dict[cur['code']] = cur['rate']
-
-        rub_from = salary.get('from', 0)\
-            // self.currency_dict[salary['currency']]
-        rub_to = salary.get('to', 0) // self.currency_dict[salary['currency']]
+        rub_from = 0
+        rub_to = 0
+        if salary.get('from'):
+            rub_from = salary.get('from')\
+                // self.currency_dict[salary['currency']]
+        if salary.get('to'):
+            rub_to = salary.get('to') // self.currency_dict[salary['currency']]
 
         return rub_from, rub_to
 

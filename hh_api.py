@@ -32,7 +32,10 @@ class HeadHunterAPI:
             pprint(page_data)
 
         # Если нашлось несколько компаний
-        if len(page_data['items']) > 1:
+        if len(page_data['items']) == 0:
+            print('Компания не найдена.')
+            return
+        elif len(page_data['items']) > 1:
             companies_string = '\n'.join([f'{index+1}: {company["name"]}'
                                           for index, company in enumerate(page_data['items'])])
             message = 'Нашлись несколько компаний, пожалуйста укажите нужную компанию:'
@@ -50,14 +53,23 @@ class HeadHunterAPI:
 
     def get_company_vacancies(self, company: dict):
         params = {
-            "page": 0,  # Specify the page number
             "per_page": 100,  # Number of companies per page
         }
+        vacancies = []
+
         if company.get('vacancies_url'):
-            company_vacancies = self.get_page_data(
-                company.get('vacancies_url'),
-                params=params)
-            return company_vacancies['items']
+            for page in range(20):
+                params['page'] = page
+                company_vacancies = self.get_page_data(
+                    company.get('vacancies_url'),
+                    params=params)
+                if not company_vacancies:
+                    break
+                elif company_vacancies.get('items'):
+                    vacancies.extend(company_vacancies['items'])
+                else:
+                    break
+            return vacancies
         else:
             raise CompanyFormatError()
 
@@ -77,14 +89,14 @@ class HeadHunterAPI:
             else:
                 salary_from, salary_to = 0, 0
 
-            address = vacancy.get('address', {}).get('raw', 'Не указан')
+            address = (vacancy.get('address') or {}).get('raw', 'Не указан')
             url = vacancy['url']
             company_id = vacancy['employer']['id']
 
             Vacancy(vacancy_name, salary_from,
                     salary_to, address, url, company_id)
 
-    def get_page_data(self, url, params={}, headers={}, retry_num=5):
+    def get_page_data(self, url, params={}, headers={}, retry_num=3):
 
         for _ in range(retry_num):
             req = requests.get(url, headers=headers, params=params)
@@ -93,8 +105,6 @@ class HeadHunterAPI:
                 req.close()
                 return data
             else:
-                print(
-                    f"Request on page failed with status code: {req.status_code}. Trying again")
                 continue
         else:
             print(f'Request failed for {retry_num} times. Abandon.')
@@ -112,6 +122,8 @@ class HeadHunterAPI:
         return rub_from, rub_to
 
 
+hh_api = HeadHunterAPI()
+
 if __name__ == '__main__':
     from pprint import pprint
     # sys.path.insert(0,
@@ -120,6 +132,6 @@ if __name__ == '__main__':
     company = hh_api.get_company('CoMagic')
     # company = hh_api.get_company('Yandex')
     # pprint(company)
-    company_vacancies = hh_api.get_company_vacancies(company)
+    # company_vacancies = hh_api.get_company_vacancies(company)
     # pprint(company_vacancies[0])
-    hh_api.parse_vacancies_data(company_vacancies)
+    # hh_api.parse_vacancies_data(company_vacancies)

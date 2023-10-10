@@ -6,13 +6,13 @@ class Vacancy:
         self.vacancy_name = vacancy_name
         self.salary_from = salary_from
         self.salary_to = salary_to
-        self.address = address
-        self.url = url
+        self.vacancy_address = address
+        self.vacancy_url = url
         self.company_id = company_id
         Vacancy.all_vacancies.append(self)
 
     @property
-    def avr_salary(self):
+    def avg_salary(self):
         if self.salary_from and self.salary_to:
             return (self.salary_from + self.salary_to) // 2
         elif self.salary_from:

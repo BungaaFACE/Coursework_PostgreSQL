@@ -1,6 +1,7 @@
 import psycopg2
 from vacancy import Vacancy
 from os import getenv
+from tabulate import tabulate
 
 
 class PostgresAPI:
@@ -13,8 +14,14 @@ class PostgresAPI:
             with self.get_connect() as postgres_conn:
                 with postgres_conn.cursor() as cursor:
                     cursor.execute("CREATE DATABASE hh_parser;")
+                postgres_conn.commit()
             # Connect to new DB
             self.conn = self.get_connect(db_name='hh_parser')
+            # Create new tables
+            with open('create_tables.sql', encoding='utf-8') as file:
+                sql_exec = file.read()
+            self.custom_request(sql_exec)
+            self.conn.commit()
 
         finally:
             return self
@@ -32,15 +39,19 @@ class PostgresAPI:
         )
         return conn
 
-    def insert_company(self, company_id, company_name, company_url):
+    def insert_company(self, company):
         """
             company_id INTEGER PRIMARY KEY NOT NULL,
             company_name VARCHAR(50),
             company_url VARCHAR(100)
         """
+        company_id = company['id']
+        company_name = company['name']
+        company_url = company['url']
+
         cursor = self.conn.cursor()
         cursor.execute(
-            f"INSERT INTO companies(company_id, company_name, company_url) VALUES ({company_id}, {company_name}, {company_url})")
+            f"INSERT INTO companies(company_id, company_name, company_url) VALUES ({company_id}, '{company_name}', '{company_url}')")
         cursor.close()
 
     def insert_list_of_vacancies(self):
@@ -63,40 +74,69 @@ class PostgresAPI:
         cur = self.conn.cursor()
         cur.execute(sql_exec)
         if return_data:
+            colnames = [desc[0] for desc in cur.description]
             data = cur.fetchall()
             cur.close()
-            return data
+            return colnames, data
         cur.close()
 
-    def get_companies_and_vacancies_count(self):
-        sql_exec = "SELECT company_name, COUNT(vacancies.vacancy_id) AS 'number_of_vacancies' FROM companies "\
+    def get_companies_and_vacancies_count(self, print_result=True):
+        sql_exec = "SELECT company_name, COUNT(vacancies.vacancy_id) AS number_of_vacancies FROM companies "\
             'JOIN vacancies USING(company_id) '\
             'GROUP BY company_name '\
             'ORDER BY COUNT(vacancies.vacancy_id) DESC;'
-        return self.custom_request(sql_exec, return_data=True)
+        columns, data = self.custom_request(sql_exec, return_data=True)
+        if print_result:
+            self.tables_printer(columns, data)
+        return data
 
-    def get_all_vacancies(self):
+    def get_all_vacancies(self, print_result=True):
         sql_exec = 'SELECT companies.company_name, vacancy_name, avg_salary, vacancy_url FROM vacancies '\
             'JOIN companies USING(company_id);'
-        return self.custom_request(sql_exec, return_data=True)
+        columns, data = self.custom_request(sql_exec, return_data=True)
+        if print_result:
+            self.tables_printer(columns, data)
+        return data
 
-    def get_avg_salary(self):
-        sql_exec = "SELECT AVG(avg_salary) AS 'average_salary' FROM vacancies"\
+    def get_avg_salary(self, print_result=True):
+        sql_exec = "SELECT AVG(avg_salary) AS average_salary FROM vacancies "\
             "WHERE avg_salary <> 0;"
-        return self.custom_request(sql_exec, return_data=True)
+        columns, data = self.custom_request(sql_exec, return_data=True)
+        if not data[0][0]:
+            data[0] = (0,)
+        if print_result:
+            self.tables_printer(columns, data)
+        return data
 
-    def get_vacancies_with_higher_salary(self):
-        avg_salary = self.get_avg_salary()[0][0]
+    def get_vacancies_with_higher_salary(self, print_result=True):
+        avg_salary = self.get_avg_salary(print_result=False)[0][0]
         sql_exec = "SELECT companies.company_name, vacancy_name, avg_salary, vacancy_url FROM vacancies "\
             "JOIN companies USING(company_id) "\
             f"WHERE avg_salary > {avg_salary};"
-        return self.custom_request(sql_exec, return_data=True)
+        columns, data = self.custom_request(sql_exec, return_data=True)
+        if print_result:
+            self.tables_printer(columns, data)
+        return data
 
-    def get_vacancies_with_keyword(self, keyword):
+    def get_vacancies_with_keyword(self, keyword, print_result=True):
         sql_exec = "SELECT companies.company_name, vacancy_name, avg_salary, vacancy_url FROM vacancies "\
             "JOIN companies USING(company_id) "\
-            f"WHERE '%{keyword}%' IN vacancy_name;"
-        return self.custom_request(sql_exec, return_data=True)
+            f"WHERE vacancy_name LIKE '%{keyword}%';"
+        columns, data = self.custom_request(sql_exec, return_data=True)
+        if print_result:
+            self.tables_printer(columns, data)
+        return data
+
+    def tables_printer(self, columns, data):
+        if data:
+            print(tabulate(data, headers=columns, tablefmt='pretty'))
+        else:
+            print('Нет результатов.')
+
+    def clear_data(self):
+        with open('create_tables.sql', encoding='utf-8') as file:
+            sql_exec = file.read()
+            self.custom_request(sql_exec)
 
 
 if __name__ == '__main__':

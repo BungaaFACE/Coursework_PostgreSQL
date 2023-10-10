@@ -7,11 +7,9 @@ CREATE TABLE companies(
     company_url VARCHAR(100)
 );
 
-
-
 CREATE TABLE vacancies(
     vacancy_id SERIAL PRIMARY KEY NOT NULL,
-    vacancy_name VARCHAR(50) NOT NULL,
+    vacancy_name VARCHAR(100) NOT NULL,
     avg_salary INTEGER,
     vacancy_address VARCHAR(100),
     vacancy_url VARCHAR(100),

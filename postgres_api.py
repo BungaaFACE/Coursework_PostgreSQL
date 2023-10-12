@@ -1,4 +1,5 @@
 import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from vacancy import Vacancy
 from os import getenv
 from tabulate import tabulate
@@ -11,10 +12,12 @@ class PostgresAPI:
 
         except psycopg2.OperationalError:
             # Create DB
-            with self.get_connect() as postgres_conn:
-                with postgres_conn.cursor() as cursor:
-                    cursor.execute("CREATE DATABASE hh_parser;")
-                postgres_conn.commit()
+            postgres_conn = self.get_connect()
+            postgres_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            with postgres_conn.cursor() as cursor:
+                cursor.execute("CREATE DATABASE hh_parser;")
+            postgres_conn.close()
+
             # Connect to new DB
             self.conn = self.get_connect(db_name='hh_parser')
             # Create new tables
